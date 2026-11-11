@@ -267,9 +267,9 @@ class AssetControlSystemTest extends TestCase
             ->assertSee('--qr-mm: 15mm;')
             ->assertSee('แผ่นที่ 5 / 5')
             ->assertSee('qrLocateInput')
-            ->assertSee('data-page="5"')
-            ->assertSee('data-row=')
-            ->assertSee('data-col=');
+            ->assertSee('data-page="5"', false)
+            ->assertSee('data-row=', false)
+            ->assertSee('data-col=', false);
 
         // Print with skip slots & legacy grid-24 alias
         $this->actingAs($admin)->get(route('qr.print', ['layout' => 'grid-24', 'skip' => 4, 'qr_mm' => 15]))
