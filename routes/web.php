@@ -26,6 +26,9 @@ Route::middleware('auth')->group(function () {
 
     // Assets CRUD & Position Assignment
     Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
+    Route::get('/assets/checklist', [AssetController::class, 'checklist'])->name('assets.checklist');
+    Route::get('/assets/bulk-edit', [AssetController::class, 'bulkEdit'])->name('assets.bulk-edit');
+    Route::post('/assets/bulk-edit', [AssetController::class, 'bulkUpdate'])->name('assets.bulk-update');
     Route::get('/assets/create', [AssetController::class, 'create'])->name('assets.create');
     Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
     Route::get('/assets/{asset}', [AssetController::class, 'show'])->name('assets.show');

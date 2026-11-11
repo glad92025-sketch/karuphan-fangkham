@@ -22,6 +22,12 @@
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         @if($reviewStatus === 'approved')
+          <a href="{{ route('assets.checklist', request()->query()) }}" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-list-check" style="color:var(--primary);"></i> พิมพ์ใบรายการทั้งหมด (ติด QR)
+          </a>
+          <a href="{{ route('assets.bulk-edit', request()->query()) }}" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-table-cells" style="color:#7c3aed;"></i> คีย์ผู้รับผิดชอบ/ตำแหน่ง (แบบตาราง)
+          </a>
           <a href="{{ route('reports.export', request()->query()) }}" class="btn btn-outline btn-sm">
             <i class="fa-solid fa-file-excel" style="color:var(--success);"></i> ส่งออก Excel
           </a>
@@ -30,6 +36,10 @@
           </a>
           <a href="{{ route('assets.create') }}" class="btn btn-primary btn-sm">
             <i class="fa-solid fa-plus"></i> ลงทะเบียนครุภัณฑ์ใหม่
+          </a>
+        @else
+          <a href="{{ route('assets.checklist', ['review_status' => 'pending']) }}" class="btn btn-outline btn-sm">
+            <i class="fa-solid fa-list-check"></i> พิมพ์ใบรายการรอตรวจสอบ
           </a>
         @endif
       </div>
@@ -83,6 +93,16 @@
           @foreach(\App\Models\Asset::STATUS_LABELS as $key => $label)
             <option value="{{ $key }}" {{ request('status') === $key ? 'selected' : '' }}>{{ $label }}</option>
           @endforeach
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">แสดงต่อหน้า</label>
+        <select name="per_page" class="form-select">
+          <option value="25" {{ ($perPageParam ?? '25') === '25' ? 'selected' : '' }}>25 รายการ</option>
+          <option value="50" {{ ($perPageParam ?? '') === '50' ? 'selected' : '' }}>50 รายการ</option>
+          <option value="100" {{ ($perPageParam ?? '') === '100' ? 'selected' : '' }}>100 รายการ</option>
+          <option value="all" {{ ($perPageParam ?? '') === 'all' ? 'selected' : '' }}>แสดงทั้งหมด</option>
         </select>
       </div>
 

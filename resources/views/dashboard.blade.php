@@ -77,6 +77,16 @@
           <span>พิมพ์สติกเกอร์ QR ทั้งหมด</span>
           <small>ขนาด 1.5×1.5 ซม. ครบ {{ number_format($stats['total']) }} ดวง</small>
         </a>
+        <a class="menu-card" href="{{ route('assets.checklist') }}">
+          <div class="icon-wrap ic-orange"><i class="fa-solid fa-list-check"></i></div>
+          <span>พิมพ์ใบรายการติด QR</span>
+          <small>เช็คลิสต์ {{ number_format($stats['total']) }} รายการหน้างาน</small>
+        </a>
+        <a class="menu-card" href="{{ route('assets.bulk-edit') }}">
+          <div class="icon-wrap ic-purple"><i class="fa-solid fa-table-cells"></i></div>
+          <span>คีย์ผู้รับผิดชอบ/ตำแหน่ง</span>
+          <small>กรอกข้อมูลแบบตารางรวดเดียว</small>
+        </a>
         <a class="menu-card" href="{{ route('reports.index') }}">
           <div class="icon-wrap ic-green"><i class="fa-solid fa-file-excel"></i></div>
           <span>รายงาน &amp; Excel</span>

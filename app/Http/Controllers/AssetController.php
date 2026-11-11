@@ -19,11 +19,203 @@ class AssetController extends Controller
 {
     public function index(Request $request): View
     {
-        $reviewStatus = $request->string('review_status')->toString() ?: 'approved';
-        if (! in_array($reviewStatus, ['approved', 'pending'], true)) {
-            $reviewStatus = 'approved';
+        $reviewStatus = $this->resolveReviewStatus($request);
+        $query = $this->buildFilteredQuery($request, $reviewStatus);
+
+        $filteredCount = (clone $query)->count();
+        $filteredSum = (float) (clone $query)->sum('price');
+
+        $perPageParam = $request->string('per_page')->toString() ?: '25';
+        $perPage = match ($perPageParam) {
+            '50' => 50,
+            '100' => 100,
+            'all' => max($filteredCount, 1),
+            default => 25,
+        };
+
+        $assets = $query
+            ->orderByRaw('CASE WHEN excel_seq IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('excel_seq')
+            ->orderBy('id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $categories = Asset::where('review_status', $reviewStatus)
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        $responsibles = Asset::where('review_status', $reviewStatus)
+            ->whereNotNull('responsible_person')
+            ->distinct()
+            ->orderBy('responsible_person')
+            ->pluck('responsible_person');
+
+        $approvedResponsibles = Asset::approved()
+            ->whereNotNull('responsible_person')
+            ->distinct()
+            ->orderBy('responsible_person')
+            ->pluck('responsible_person');
+
+        $pendingCount = Asset::pendingReview()->count();
+        $approvedCount = Asset::approved()->count();
+        $positions = Asset::positionSuggestions();
+
+        return view('assets.index', compact(
+            'assets',
+            'reviewStatus',
+            'perPageParam',
+            'categories',
+            'responsibles',
+            'approvedResponsibles',
+            'positions',
+            'filteredCount',
+            'filteredSum',
+            'pendingCount',
+            'approvedCount'
+        ));
+    }
+
+    public function checklist(Request $request, QrCodeService $qr): View
+    {
+        $reviewStatus = $this->resolveReviewStatus($request);
+        $withQr = $request->boolean('with_qr', true);
+
+        $assets = $this->buildFilteredQuery($request, $reviewStatus)
+            ->orderByRaw('CASE WHEN excel_seq IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('excel_seq')
+            ->orderBy('id')
+            ->get();
+
+        $qrSvgs = [];
+        if ($withQr) {
+            foreach ($assets as $asset) {
+                $qrSvgs[$asset->id] = $qr->svg($asset->scanUrl(), 80, 1, true);
+            }
         }
 
+        $categories = Asset::where('review_status', $reviewStatus)->whereNotNull('category')->distinct()->orderBy('category')->pluck('category');
+        $responsibles = Asset::where('review_status', $reviewStatus)->whereNotNull('responsible_person')->distinct()->orderBy('responsible_person')->pluck('responsible_person');
+        $totalSum = (float) $assets->sum('price');
+
+        return view('assets.checklist', compact(
+            'assets',
+            'reviewStatus',
+            'withQr',
+            'qrSvgs',
+            'categories',
+            'responsibles',
+            'totalSum'
+        ));
+    }
+
+    public function bulkEdit(Request $request): View
+    {
+        $reviewStatus = $this->resolveReviewStatus($request);
+        $onlyMissingPosition = $request->boolean('missing_position');
+
+        $query = $this->buildFilteredQuery($request, $reviewStatus);
+        if ($onlyMissingPosition) {
+            $query->where(fn ($q) => $q->whereNull('position_title')->orWhere('position_title', ''));
+        }
+
+        $assets = $query
+            ->orderByRaw('CASE WHEN excel_seq IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('excel_seq')
+            ->orderBy('id')
+            ->get();
+
+        $categories = Asset::where('review_status', $reviewStatus)->whereNotNull('category')->distinct()->orderBy('category')->pluck('category');
+        $responsibles = Asset::approved()->whereNotNull('responsible_person')->distinct()->orderBy('responsible_person')->pluck('responsible_person');
+        $positions = Asset::positionSuggestions();
+
+        return view('assets.bulk-edit', compact(
+            'assets',
+            'reviewStatus',
+            'onlyMissingPosition',
+            'categories',
+            'responsibles',
+            'positions'
+        ));
+    }
+
+    public function bulkUpdate(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'rows' => ['required', 'array'],
+            'rows.*.responsible_person' => ['nullable', 'string', 'max:200'],
+            'rows.*.position_title' => ['nullable', 'string', 'max:200'],
+            'rows.*.location' => ['nullable', 'string', 'max:200'],
+            'rows.*.status' => ['required', 'in:usable,repair,damaged,disposed,lost'],
+        ]);
+
+        $ids = array_keys($data['rows']);
+        $assets = Asset::whereIn('id', $ids)->get()->keyBy('id');
+        $updatedCount = 0;
+
+        DB::transaction(function () use ($data, $assets, &$updatedCount) {
+            foreach ($data['rows'] as $id => $row) {
+                $asset = $assets->get((int) $id);
+                if (! $asset) {
+                    continue;
+                }
+
+                $newResp = trim((string) ($row['responsible_person'] ?? '')) ?: null;
+                $newPos = trim((string) ($row['position_title'] ?? '')) ?: null;
+                $newLoc = trim((string) ($row['location'] ?? '')) ?: null;
+                $newStatus = $row['status'];
+
+                if (
+                    $asset->responsible_person === $newResp
+                    && $asset->position_title === $newPos
+                    && $asset->location === $newLoc
+                    && $asset->status === $newStatus
+                ) {
+                    continue;
+                }
+
+                $oldResp = $asset->responsible_person;
+                $oldPos = $asset->position_title;
+                $oldLoc = $asset->location;
+                $oldStatus = $asset->status;
+
+                $asset->update([
+                    'responsible_person' => $newResp,
+                    'position_title' => $newPos,
+                    'location' => $newLoc,
+                    'status' => $newStatus,
+                ]);
+
+                AssetMovement::create([
+                    'asset_id' => $asset->id,
+                    'user_id' => Auth::id(),
+                    'movement_type' => ($oldResp !== $newResp || $oldPos !== $newPos) ? 'transfer' : 'status_change',
+                    'from_responsible' => $oldResp,
+                    'to_responsible' => $newResp,
+                    'from_location' => $oldLoc,
+                    'to_location' => $newLoc,
+                    'from_status' => $oldStatus,
+                    'to_status' => $newStatus,
+                    'remark' => 'บันทึกคีย์ข้อมูลแบบตาราง' . ($newPos ? " (ตำแหน่ง: {$newPos})" : ''),
+                    'moved_at' => now(),
+                ]);
+
+                $updatedCount++;
+            }
+        });
+
+        return back()->with('success', "บันทึกการปรับปรุงข้อมูลสำเร็จ {$updatedCount} รายการ");
+    }
+
+    private function resolveReviewStatus(Request $request): string
+    {
+        $reviewStatus = $request->string('review_status')->toString() ?: 'approved';
+        return in_array($reviewStatus, ['approved', 'pending'], true) ? $reviewStatus : 'approved';
+    }
+
+    private function buildFilteredQuery(Request $request, string $reviewStatus)
+    {
         $query = Asset::query()->where('review_status', $reviewStatus);
 
         if ($search = trim($request->string('search')->toString())) {
@@ -58,50 +250,7 @@ class AssetController extends Controller
             $query->where('status', $status);
         }
 
-        $filteredCount = (clone $query)->count();
-        $filteredSum = (float) (clone $query)->sum('price');
-
-        $assets = $query
-            ->orderByRaw('CASE WHEN excel_seq IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('excel_seq')
-            ->orderBy('id')
-            ->paginate(25)
-            ->withQueryString();
-
-        $categories = Asset::where('review_status', $reviewStatus)
-            ->whereNotNull('category')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category');
-
-        $responsibles = Asset::where('review_status', $reviewStatus)
-            ->whereNotNull('responsible_person')
-            ->distinct()
-            ->orderBy('responsible_person')
-            ->pluck('responsible_person');
-
-        $approvedResponsibles = Asset::approved()
-            ->whereNotNull('responsible_person')
-            ->distinct()
-            ->orderBy('responsible_person')
-            ->pluck('responsible_person');
-
-        $pendingCount = Asset::pendingReview()->count();
-        $approvedCount = Asset::approved()->count();
-        $positions = Asset::positionSuggestions();
-
-        return view('assets.index', compact(
-            'assets',
-            'reviewStatus',
-            'categories',
-            'responsibles',
-            'approvedResponsibles',
-            'positions',
-            'filteredCount',
-            'filteredSum',
-            'pendingCount',
-            'approvedCount'
-        ));
+        return $query;
     }
 
     public function create(): View

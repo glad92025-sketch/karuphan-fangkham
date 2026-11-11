@@ -101,7 +101,12 @@
                     <div style="font-size:11.5px;color:var(--text-light);">{{ $asset->qr_token }}</div>
                   </td>
                   <td>{{ $asset->name }}</td>
-                  <td><span class="badge badge-blue">{{ $asset->responsible_person ?? '-' }}</span></td>
+                  <td>
+                    <span class="badge badge-blue">{{ $asset->responsible_person ?? '-' }}</span>
+                    @if($asset->position_title)
+                      <div style="font-size:11.5px;color:#6d28d9;font-weight:600;margin-top:2px;">{{ $asset->position_title }}</div>
+                    @endif
+                  </td>
                   <td style="text-align:right;white-space:nowrap;">
                     @if($stockCheck->isOpen())
                       <form method="POST" action="{{ route('stock-checks.scan', $stockCheck) }}" style="display:inline-flex;gap:4px;">
@@ -127,11 +132,16 @@
             </tbody>
           </table>
         </div>
-        <div class="pagination-wrap"><div class="pagination-links">{{ $uncheckedAssets->links() }}</div></div>
+        <div class="pagination-wrap">
+          <div style="font-size:13px;color:var(--text-light);">
+            แสดง {{ $uncheckedAssets->firstItem() ?? 0 }} ถึง {{ $uncheckedAssets->lastItem() ?? 0 }} จาก {{ $uncheckedAssets->total() }} รายการ
+          </div>
+          <div class="pagination-links">{{ $uncheckedAssets->links() }}</div>
+        </div>
       @else
         <div class="table-responsive">
           <table>
-            <thead><tr><th>วันเวลา</th><th>รหัส / ชื่อครุภัณฑ์</th><th>ผลตรวจนับ</th><th>ผู้ถือครองที่พบ</th><th>ผู้ตรวจ</th></tr></thead>
+            <thead><tr><th>วันเวลา</th><th>รหัส / ชื่อครุภัณฑ์</th><th>ผลตรวจนับ</th><th>ผู้ถือครอง / ตำแหน่ง</th><th>ผู้ตรวจ</th></tr></thead>
             <tbody>
               @forelse($checkedItems as $item)
                 <tr>
@@ -147,7 +157,12 @@
                       {{ $item->statusLabel() }}
                     </span>
                   </td>
-                  <td>{{ $item->actual_responsible ?? '-' }}</td>
+                  <td>
+                    <div>{{ $item->actual_responsible ?? '-' }}</div>
+                    @if($item->actual_position)
+                      <div style="font-size:11.5px;color:#6d28d9;font-weight:600;">{{ $item->actual_position }}</div>
+                    @endif
+                  </td>
                   <td>{{ $item->checker_name ?? '-' }}</td>
                 </tr>
               @empty
@@ -156,7 +171,12 @@
             </tbody>
           </table>
         </div>
-        <div class="pagination-wrap"><div class="pagination-links">{{ $checkedItems->links() }}</div></div>
+        <div class="pagination-wrap">
+          <div style="font-size:13px;color:var(--text-light);">
+            แสดง {{ $checkedItems->firstItem() ?? 0 }} ถึง {{ $checkedItems->lastItem() ?? 0 }} จาก {{ $checkedItems->total() }} รายการ
+          </div>
+          <div class="pagination-links">{{ $checkedItems->links() }}</div>
+        </div>
       @endif
     </div>
 

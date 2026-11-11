@@ -276,5 +276,39 @@ class AssetControlSystemTest extends TestCase
         $exportRes = $this->actingAs($admin)->get(route('stock-checks.export', $stockCheck));
         $exportRes->assertOk();
         $this->assertFileExists($exportRes->getFile()->getPathname());
+
+        // Custom pagination (no giant Tailwind SVG) & All-items Checklist & Bulk Edit
+        $this->actingAs($admin)->get(route('stock-checks.show', $stockCheck))
+            ->assertOk()
+            ->assertSee('custom-pagination')
+            ->assertDontSee('w-5 h-5');
+
+        $this->actingAs($admin)->get(route('assets.index', ['per_page' => 'all']))
+            ->assertOk()
+            ->assertSee('FKSP-0194');
+
+        $this->actingAs($admin)->get(route('assets.checklist'))
+            ->assertOk()
+            ->assertSee('194')
+            ->assertSee('FKSP-0001')
+            ->assertSee('FKSP-0194');
+
+        $this->actingAs($admin)->get(route('assets.bulk-edit'))
+            ->assertOk()
+            ->assertSee('FKSP-0194');
+
+        $this->actingAs($admin)->post(route('assets.bulk-update'), [
+            'rows' => [
+                $asset->id => [
+                    'responsible_person' => 'นายทดสอบ ระบบ',
+                    'position_title' => 'นักวิชาการคอมพิวเตอร์',
+                    'location' => 'ห้องไอที',
+                    'status' => 'usable',
+                ],
+            ],
+        ])->assertRedirect();
+
+        $this->assertSame('นายทดสอบ ระบบ', $asset->fresh()->responsible_person);
+        $this->assertSame('นักวิชาการคอมพิวเตอร์', $asset->fresh()->position_title);
     }
 }

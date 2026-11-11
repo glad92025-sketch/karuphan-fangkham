@@ -690,21 +690,44 @@ tbody tr:hover { background: #f8fafc; }
 
 /* ---------- Pagination ---------- */
 .pagination-wrap { margin-top: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-.pagination-links nav { display: flex; gap: 4px; flex-wrap: wrap; }
-.pagination-links a, .pagination-links span {
+.pagination-links .pagination-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pagination-links .page-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 6px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: white;
   font-size: 13px;
+  font-weight: 600;
   text-decoration: none;
   color: var(--text);
+  transition: all 0.15s;
 }
-.pagination-links span[aria-current="page"] span {
+.pagination-links a.page-link:hover {
+  border-color: var(--primary-light);
+  color: var(--primary);
+  background: #eff6ff;
+}
+.pagination-links .page-item.active .page-link {
   background: var(--primary);
   color: white;
   border-color: var(--primary);
 }
+.pagination-links .page-item.disabled .page-link {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.pagination-links svg { width: 14px; height: 14px; display: inline-block; }
 
 /* ---------- Alerts & Toast ---------- */
 .alert {

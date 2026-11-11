@@ -99,6 +99,12 @@
     <a href="{{ route('qr.print') }}" class="nav-link {{ request()->routeIs('qr.print') ? 'active' : '' }}">
       <i class="fa-solid fa-print"></i> พิมพ์ป้าย QR ทั้งหมด
     </a>
+    <a href="{{ route('assets.checklist') }}" class="nav-link {{ request()->routeIs('assets.checklist') ? 'active' : '' }}">
+      <i class="fa-solid fa-list-check"></i> พิมพ์ใบรายการติด QR
+    </a>
+    <a href="{{ route('assets.bulk-edit') }}" class="nav-link {{ request()->routeIs('assets.bulk-edit') ? 'active' : '' }}">
+      <i class="fa-solid fa-table-cells"></i> คีย์ผู้รับผิดชอบ/ตำแหน่ง
+    </a>
     <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
       <i class="fa-solid fa-file-excel"></i> รายงาน / Excel
     </a>
