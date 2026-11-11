@@ -81,6 +81,7 @@
   }
 
   .sticker-card {
+    position: relative;
     background: #ffffff;
     display: flex;
     align-items: center;
@@ -91,6 +92,60 @@
     min-width: 0;
     min-height: 0;
   }
+
+  .sticker-card.is-located {
+    border: 2.5px solid #f59e0b !important;
+    background: #fef3c7 !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.45);
+    z-index: 5;
+  }
+
+  .coord-pill {
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    background: rgba(30, 64, 175, 0.08);
+    color: #1e40af;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 0 4px;
+    border-radius: 4px;
+    line-height: 1.3;
+    pointer-events: none;
+  }
+
+  .sticker-card.is-located .coord-pill {
+    background: #d97706;
+    color: #ffffff;
+  }
+
+  .qr-locator-panel {
+    position: sticky;
+    top: 66px;
+    z-index: 40;
+    background: #ffffff;
+    border: 2px solid var(--primary-light);
+    border-radius: 14px;
+    padding: 14px 18px;
+    box-shadow: 0 10px 25px rgba(30, 64, 175, 0.14);
+    margin-bottom: 20px;
+  }
+
+  .locate-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .locate-result-item:hover { background: #fef3c7; }
 
   .sticker-card.border-dashed { border: 0.35mm dashed #94a3b8; border-radius: 1.5mm; }
   .sticker-card.border-solid { border: 0.4mm solid #1e40af; border-radius: 2mm; }
@@ -219,6 +274,12 @@
     .sticker-card.border-none {
       border-color: transparent !important;
     }
+    .sticker-card.is-located {
+      border-color: inherit !important;
+      background: #ffffff !important;
+      box-shadow: none !important;
+    }
+    .coord-pill { display: none !important; }
     .thermal-grid {
       display: block !important;
     }
@@ -371,10 +432,37 @@
     <div class="panel" style="text-align:center;color:var(--text-light);padding:40px;">
       ไม่พบรายการครุภัณฑ์ตามเงื่อนไขที่เลือก
     </div>
-  @elseif($layout === 'thermal')
+  @else
+    <div class="qr-locator-panel no-print">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div style="font-weight:700;color:var(--primary-dark);white-space:nowrap;">
+          <i class="fa-solid fa-location-crosshairs"></i> ค้นหาตำแหน่ง QR บนแผ่นสติกเกอร์:
+        </div>
+        <input type="text" id="qrLocateInput" class="form-control" style="flex:1;min-width:220px;"
+               placeholder="พิมพ์เลข QR เช่น FKSP-0085 หรือ 85 หรือ รหัสพัสดุ / ชื่อครุภัณฑ์...">
+        <button type="button" onclick="locateQrOnSheets()" class="btn btn-primary btn-sm">
+          <i class="fa-solid fa-magnifying-glass"></i> ค้นหาตำแหน่ง
+        </button>
+        <button type="button" onclick="clearLocateHighlight()" class="btn btn-outline btn-sm">
+          ล้าง
+        </button>
+      </div>
+      <div id="qrLocateResults" style="display:none;margin-top:10px;max-height:210px;overflow-y:auto;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    @if($layout === 'thermal')
     <div class="thermal-grid">
-      @foreach($assets as $asset)
-        <div class="sticker-card border-{{ $borderMode }}">
+      @foreach($assets as $idx => $asset)
+        <div class="sticker-card border-{{ $borderMode }}"
+             data-qr="{{ $asset->qr_token }}"
+             data-code="{{ $asset->asset_code ?? '' }}"
+             data-name="{{ $asset->name }}"
+             data-resp="{{ $asset->responsible_person ?? '' }} {{ $asset->position_title ?? '' }}"
+             data-page="1"
+             data-row="{{ $idx + 1 }}"
+             data-col="1"
+             data-slot="{{ $idx + 1 }}">
+          <span class="coord-pill no-print">ดวงที่ {{ $idx + 1 }}</span>
           <div class="sticker-qr">{!! $qrSvgs[$asset->id] !!}</div>
           <div class="sticker-info">
             <div class="sticker-org">อบต.ฝางคำ • สำนักปลัด</div>
@@ -390,6 +478,7 @@
       @foreach($pages as $pageIdx => $pageSlots)
         @php
           $filledInPage = collect($pageSlots)->filter()->count();
+          $cols = max(1, (int) $layoutMeta['cols']);
         @endphp
         <div class="sheet-meta-bar no-print">
           <span><i class="fa-regular fa-file-lines"></i> แผ่นที่ {{ $pageIdx + 1 }} / {{ count($pages) }} ({{ $layoutMeta['label'] }})</span>
@@ -397,11 +486,27 @@
         </div>
 
         <div class="a4-sheet layout-{{ $layout }}">
-          @foreach($pageSlots as $slotAsset)
+          @foreach($pageSlots as $slotIdx => $slotAsset)
             @if($slotAsset === null)
               <div class="sticker-card border-{{ $borderMode }} is-blank"></div>
             @else
-              <div class="sticker-card border-{{ $borderMode }}">
+              @php
+                $pageNo = $pageIdx + 1;
+                $rowNo = intdiv($slotIdx, $cols) + 1;
+                $colNo = ($slotIdx % $cols) + 1;
+                $slotNo = $slotIdx + 1;
+              @endphp
+              <div class="sticker-card border-{{ $borderMode }}"
+                   id="sticker-{{ $slotAsset->qr_token }}"
+                   data-qr="{{ $slotAsset->qr_token }}"
+                   data-code="{{ $slotAsset->asset_code ?? '' }}"
+                   data-name="{{ $slotAsset->name }}"
+                   data-resp="{{ $slotAsset->responsible_person ?? '' }} {{ $slotAsset->position_title ?? '' }}"
+                   data-page="{{ $pageNo }}"
+                   data-row="{{ $rowNo }}"
+                   data-col="{{ $colNo }}"
+                   data-slot="{{ $slotNo }}">
+                <span class="coord-pill no-print">ผ.{{ $pageNo }} แถว{{ $rowNo }}·{{ $colNo }}</span>
                 <div class="sticker-qr">{!! $qrSvgs[$slotAsset->id] !!}</div>
                 <div class="sticker-info">
                   <div class="sticker-org">อบต.ฝางคำ • สำนักปลัด</div>
@@ -416,4 +521,92 @@
       @endforeach
     </div>
   @endif
+  @endif
 @endsection
+
+@push('scripts')
+<script>
+  function clearLocateHighlight() {
+    document.querySelectorAll('.sticker-card.is-located').forEach(el => el.classList.remove('is-located'));
+    const resBox = document.getElementById('qrLocateResults');
+    const input = document.getElementById('qrLocateInput');
+    if (resBox) { resBox.innerHTML = ''; resBox.style.display = 'none'; }
+    if (input) input.value = '';
+  }
+
+  function jumpToSticker(el) {
+    if (!el) return;
+    document.querySelectorAll('.sticker-card.is-located').forEach(card => card.classList.remove('is-located'));
+    el.classList.add('is-located');
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast(`อยู่ที่ แผ่นที่ ${el.dataset.page} • แถวที่ ${el.dataset.row} • ช่องที่ ${el.dataset.col}`);
+  }
+
+  function locateQrOnSheets() {
+    const raw = (document.getElementById('qrLocateInput')?.value || '').trim().toLowerCase();
+    const resBox = document.getElementById('qrLocateResults');
+    document.querySelectorAll('.sticker-card.is-located').forEach(card => card.classList.remove('is-located'));
+
+    if (!raw) {
+      if (resBox) resBox.style.display = 'none';
+      showToast('กรุณาพิมพ์เลข QR รหัสพัสดุ หรือชื่อครุภัณฑ์ที่ต้องการหา', true);
+      return;
+    }
+
+    // Also support typing just number like "85" to match "FKSP-0085"
+    const paddedNum = /^\d+$/.test(raw) ? ('fksp-' + raw.padStart(4, '0')) : null;
+    const cards = Array.from(document.querySelectorAll('.sticker-card[data-qr]'));
+
+    const matches = cards.filter(card => {
+      const qr = (card.dataset.qr || '').toLowerCase();
+      const code = (card.dataset.code || '').toLowerCase();
+      const name = (card.dataset.name || '').toLowerCase();
+      const resp = (card.dataset.resp || '').toLowerCase();
+      if (paddedNum && qr === paddedNum) return true;
+      return qr.includes(raw) || code.includes(raw) || name.includes(raw) || resp.includes(raw);
+    });
+
+    resBox.style.display = 'flex';
+    if (!matches.length) {
+      resBox.innerHTML = '<div style="color:#dc2626;font-size:13.5px;padding:6px 4px;">ไม่พบรายการที่ตรงกับคำค้นหาในชุดที่กำลังแสดง</div>';
+      showToast('ไม่พบรายการที่ค้นหา', true);
+      return;
+    }
+
+    matches.forEach(card => card.classList.add('is-located'));
+
+    resBox.innerHTML = matches.slice(0, 20).map((card, i) => `
+      <div class="locate-result-item" data-target-qr="${card.dataset.qr}">
+        <div>
+          <strong style="color:#1e3a8a;">${card.dataset.qr}</strong>
+          ${card.dataset.code ? `<span>(${card.dataset.code})</span>` : ''}
+          — <span>${card.dataset.name}</span>
+        </div>
+        <div style="font-weight:700;color:#b45309;white-space:nowrap;">
+          แผ่นที่ ${card.dataset.page} • แถว(บรรทัด)ที่ ${card.dataset.row} • ช่องที่ ${card.dataset.col}
+          <span style="font-weight:400;color:#64748b;">(ดวงที่ ${card.dataset.slot})</span>
+        </div>
+      </div>
+    `).join('') + (matches.length > 20 ? `<div style="font-size:12px;color:#64748b;">แสดง 20 จาก ${matches.length} รายการที่พบ</div>` : '');
+
+    resBox.querySelectorAll('.locate-result-item').forEach(row => {
+      row.addEventListener('click', () => {
+        const target = document.querySelector(`.sticker-card[data-qr="${row.dataset.targetQr}"]`);
+        jumpToSticker(target);
+      });
+    });
+
+    // Scroll straight to the first match
+    const first = matches[0];
+    first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast(`พบ ${matches.length} รายการ — รายการแรกอยู่ที่ แผ่น ${first.dataset.page} แถว ${first.dataset.row} ช่อง ${first.dataset.col}`);
+  }
+
+  document.getElementById('qrLocateInput')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      locateQrOnSheets();
+    }
+  });
+</script>
+@endpush

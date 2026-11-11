@@ -260,12 +260,16 @@ class AssetControlSystemTest extends TestCase
 
         $this->assertSame('สำนักปลัด(หน.สป.)', $asset->fresh()->responsible_person);
 
-        // Batch QR print all 194 labels by default at 15mm (1.5x1.5 cm)
+        // Batch QR print all 194 labels by default at 15mm (1.5x1.5 cm) with locator coordinates
         $this->actingAs($admin)->get(route('qr.print'))
             ->assertOk()
             ->assertSee('194 ดวง')
             ->assertSee('--qr-mm: 15mm;')
-            ->assertSee('แผ่นที่ 5 / 5');
+            ->assertSee('แผ่นที่ 5 / 5')
+            ->assertSee('qrLocateInput')
+            ->assertSee('data-page="5"')
+            ->assertSee('data-row=')
+            ->assertSee('data-col=');
 
         // Print with skip slots & legacy grid-24 alias
         $this->actingAs($admin)->get(route('qr.print', ['layout' => 'grid-24', 'skip' => 4, 'qr_mm' => 15]))
