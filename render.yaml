@@ -1,0 +1,41 @@
+databases:
+  - name: karuphan-db
+    plan: free
+    databaseName: karuphan
+    user: karuphan_user
+    region: singapore
+
+services:
+  - type: web
+    name: karuphan-fangkham
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /up
+    envVars:
+      - key: APP_NAME
+        value: "ระบบควบคุมครุภัณฑ์ | สำนักปลัด อบต.ฝางคำ"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_TIMEZONE
+        value: Asia/Bangkok
+      - key: APP_LOCALE
+        value: th
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: karuphan-db
+          property: connectionString
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: LOG_CHANNEL
+        value: stderr

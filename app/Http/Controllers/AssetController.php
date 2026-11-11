@@ -280,10 +280,12 @@ class AssetController extends Controller
 
         $assets = Asset::approved()
             ->when($q !== '', function ($query) use ($q) {
-                $query->where('qr_token', 'like', "%{$q}%")
-                    ->orWhere('asset_code', 'like', "%{$q}%")
-                    ->orWhere('name', 'like', "%{$q}%")
-                    ->orWhere('responsible_person', 'like', "%{$q}%");
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('qr_token', 'like', "%{$q}%")
+                        ->orWhere('asset_code', 'like', "%{$q}%")
+                        ->orWhere('name', 'like', "%{$q}%")
+                        ->orWhere('responsible_person', 'like', "%{$q}%");
+                });
             })
             ->orderBy('id')
             ->limit(15)

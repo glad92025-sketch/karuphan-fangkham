@@ -64,8 +64,8 @@ class DashboardController extends Controller
             ->get();
 
         $categorySummary = Asset::approved()
-            ->selectRaw('COALESCE(category, "ไม่ระบุหมวดหมู่") as category_name, COUNT(*) as total_count, COALESCE(SUM(price), 0) as total_price')
-            ->groupBy('category_name')
+            ->selectRaw("COALESCE(category, 'ไม่ระบุหมวดหมู่') as category_name, COUNT(*) as total_count, COALESCE(SUM(price), 0) as total_price")
+            ->groupByRaw("COALESCE(category, 'ไม่ระบุหมวดหมู่')")
             ->orderByDesc('total_count')
             ->get();
 

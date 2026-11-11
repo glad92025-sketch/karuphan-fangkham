@@ -21,14 +21,14 @@ class ReportController extends Controller
         $totalValue = (float) Asset::approved()->sum('price');
 
         $byCategory = Asset::approved()
-            ->selectRaw('COALESCE(category, "ไม่ระบุหมวดหมู่") as label, COUNT(*) as qty, COALESCE(SUM(price), 0) as amount')
-            ->groupBy('label')
+            ->selectRaw("COALESCE(category, 'ไม่ระบุหมวดหมู่') as label, COUNT(*) as qty, COALESCE(SUM(price), 0) as amount")
+            ->groupByRaw("COALESCE(category, 'ไม่ระบุหมวดหมู่')")
             ->orderByDesc('amount')
             ->get();
 
         $byResponsible = Asset::approved()
-            ->selectRaw('COALESCE(responsible_person, "ไม่ระบุตำแหน่ง") as label, COUNT(*) as qty, COALESCE(SUM(price), 0) as amount')
-            ->groupBy('label')
+            ->selectRaw("COALESCE(responsible_person, 'ไม่ระบุตำแหน่ง') as label, COUNT(*) as qty, COALESCE(SUM(price), 0) as amount")
+            ->groupByRaw("COALESCE(responsible_person, 'ไม่ระบุตำแหน่ง')")
             ->orderByDesc('qty')
             ->get();
 

@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+node_modules
+vendor
+database/database.sqlite*
+storage/logs/*
+storage/app/exports/*
+storage/app/private/*
+storage/app/public/assets/*
+tests
+.phpunit*

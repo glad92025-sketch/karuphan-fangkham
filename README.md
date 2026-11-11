@@ -28,3 +28,12 @@ php artisan serve
 ```bash
 php artisan test
 ```
+
+## Deploy ขึ้น Render + PostgreSQL (Blueprint)
+โปรเจกต์มีไฟล์ `Dockerfile`, `docker/entrypoint.sh` และ `render.yaml` พร้อมใช้งาน:
+1. ล็อกอิน [Render](https://dashboard.render.com) ด้วย GitHub (`glad92025-sketch`)
+2. เลือก **New +** -> **Blueprint** แล้วเลือก Repo `karuphan-fangkham`
+3. Render จะสร้างทั้ง **PostgreSQL (`karuphan-db`)** และ **Web Service (`karuphan-fangkham`)** รวมถึงรัน `migrate` และนำเข้าข้อมูล 194+123 รายการให้อัตโนมัติ
+
+*(หมายเหตุ: ฐานข้อมูล Free ของ Render มีอายุ 30 วัน หากต้องการใช้ฟรีระยะยาวสามารถเปลี่ยนค่า `DB_URL` ไปชี้ฐานข้อมูล PostgreSQL จาก Neon หรือ Supabase ได้ทันที)*
+
