@@ -219,15 +219,7 @@ class AssetController extends Controller
         $query = Asset::query()->where('review_status', $reviewStatus);
 
         if ($search = trim($request->string('search')->toString())) {
-            $query->where(function ($q) use ($search) {
-                $q->where('qr_token', 'like', "%{$search}%")
-                    ->orWhere('asset_code', 'like', "%{$search}%")
-                    ->orWhere('name', 'like', "%{$search}%")
-                    ->orWhere('specification', 'like', "%{$search}%")
-                    ->orWhere('responsible_person', 'like', "%{$search}%")
-                    ->orWhere('position_title', 'like', "%{$search}%")
-                    ->orWhere('location', 'like', "%{$search}%");
-            });
+            $query->search($search);
         }
 
         if ($fiscalYear = $request->integer('fiscal_year')) {

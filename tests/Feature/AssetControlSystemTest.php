@@ -260,7 +260,7 @@ class AssetControlSystemTest extends TestCase
 
         $this->assertSame('สำนักปลัด(หน.สป.)', $asset->fresh()->responsible_person);
 
-        // Batch QR print all 194 labels by default at 15mm (1.5x1.5 cm) with locator coordinates
+        // Batch QR print all 194 labels by default at 15mm (1.5x1.5 cm) with locator coordinates & acquisition year
         $this->actingAs($admin)->get(route('qr.print'))
             ->assertOk()
             ->assertSee('194 ดวง')
@@ -269,7 +269,16 @@ class AssetControlSystemTest extends TestCase
             ->assertSee('qrLocateInput')
             ->assertSee('data-page="5"', false)
             ->assertSee('data-row=', false)
-            ->assertSee('data-col=', false);
+            ->assertSee('data-col=', false)
+            ->assertSee('data-year="2542"', false)
+            ->assertSee('ได้มา: 18 มิ.ย. 2542')
+            ->assertSee('ได้มา: 13 มย.63 (ปี 2563)');
+
+        // Search by 4-digit BE acquisition year on QR print & Checklist
+        $this->actingAs($admin)->get(route('qr.print', ['search' => '2563']))
+            ->assertOk()
+            ->assertSee('FKSP-0145')
+            ->assertDontSee('FKSP-0001');
 
         // Print with skip slots & legacy grid-24 alias
         $this->actingAs($admin)->get(route('qr.print', ['layout' => 'grid-24', 'skip' => 4, 'qr_mm' => 15]))
@@ -295,11 +304,28 @@ class AssetControlSystemTest extends TestCase
             ->assertOk()
             ->assertSee('194')
             ->assertSee('FKSP-0001')
-            ->assertSee('FKSP-0194');
+            ->assertSee('FKSP-0194')
+            ->assertSee('ปี 2542')
+            ->assertSee('18 มิ.ย. 2542');
+
+        $this->actingAs($admin)->get(route('assets.checklist', ['search' => '2542']))
+            ->assertOk()
+            ->assertSee('FKSP-0001')
+            ->assertDontSee('FKSP-0145');
 
         $this->actingAs($admin)->get(route('assets.bulk-edit'))
             ->assertOk()
-            ->assertSee('FKSP-0194');
+            ->assertSee('FKSP-0194')
+            ->assertSee('ปี 2542')
+            ->assertSee('ได้มา: 18 มิ.ย. 2542');
+
+        // Verify acquiredYearBe() and acquiredDisplay() edge cases (full text, text-only BE, shorthand BE, asset_code fallback)
+        $this->assertSame(2542, Asset::where('qr_token', 'FKSP-0001')->firstOrFail()->acquiredYearBe());
+        $this->assertSame(2538, Asset::where('qr_token', 'FKSP-0036')->firstOrFail()->acquiredYearBe());
+        $this->assertSame(2562, Asset::where('qr_token', 'FKSP-0112')->firstOrFail()->acquiredYearBe());
+        $this->assertSame('ปี พ.ศ. 2562', Asset::where('qr_token', 'FKSP-0112')->firstOrFail()->acquiredDisplay());
+        $this->assertSame(2563, Asset::where('qr_token', 'FKSP-0145')->firstOrFail()->acquiredYearBe());
+        $this->assertSame('13 มย.63 (ปี 2563)', Asset::where('qr_token', 'FKSP-0145')->firstOrFail()->acquiredDisplay());
 
         $this->actingAs($admin)->post(route('assets.bulk-update'), [
             'rows' => [

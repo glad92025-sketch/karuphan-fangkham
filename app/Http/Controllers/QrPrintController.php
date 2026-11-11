@@ -70,12 +70,7 @@ class QrPrintController extends Controller
                 $query->where('category', $category);
             }
             if ($search !== '') {
-                $query->where(function ($q) use ($search) {
-                    $q->where('qr_token', 'like', "%{$search}%")
-                        ->orWhere('asset_code', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%")
-                        ->orWhere('responsible_person', 'like', "%{$search}%");
-                });
+                $query->search($search);
             }
             if ($seqFrom !== null) {
                 $query->where('excel_seq', '>=', $seqFrom);

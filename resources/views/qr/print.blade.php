@@ -174,14 +174,14 @@
   .sticker-info {
     flex: 1;
     min-width: 0;
-    line-height: 1.2;
+    line-height: 1.15;
     overflow: hidden;
   }
 
   .sticker-org {
     font-weight: 700;
     color: #1e40af;
-    font-size: 7.5pt;
+    font-size: 7pt;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -189,16 +189,16 @@
 
   .sticker-code {
     font-weight: 700;
-    font-size: 8.5pt;
+    font-size: 8pt;
     color: #0f172a;
-    margin: 0.5mm 0;
+    margin: 0.3mm 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .sticker-name {
-    font-size: 7.5pt;
+    font-size: 7pt;
     color: #1e293b;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -206,10 +206,20 @@
     overflow: hidden;
   }
 
+  .sticker-date {
+    font-size: 6.6pt;
+    font-weight: 700;
+    color: #0f766e;
+    margin-top: 0.3mm;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .sticker-resp {
-    font-size: 6.8pt;
+    font-size: 6.4pt;
     color: #475569;
-    margin-top: 0.5mm;
+    margin-top: 0.2mm;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -217,16 +227,18 @@
 
   /* Compact adjustment for 65-per-sheet */
   .layout-a4-65 .sticker-card { padding: 0.8mm 1mm; gap: 1.2mm; }
-  .layout-a4-65 .sticker-org { font-size: 6pt; }
-  .layout-a4-65 .sticker-code { font-size: 7pt; margin: 0; }
-  .layout-a4-65 .sticker-name { font-size: 6.2pt; -webkit-line-clamp: 1; }
-  .layout-a4-65 .sticker-resp { font-size: 5.8pt; }
+  .layout-a4-65 .sticker-org { font-size: 5.8pt; }
+  .layout-a4-65 .sticker-code { font-size: 6.8pt; margin: 0; }
+  .layout-a4-65 .sticker-name { font-size: 6pt; -webkit-line-clamp: 1; }
+  .layout-a4-65 .sticker-date { font-size: 5.6pt; margin-top: 0; }
+  .layout-a4-65 .sticker-resp { font-size: 5.5pt; margin-top: 0; }
 
   /* Large adjustment for 10-per-sheet */
   .layout-a4-10 .sticker-card { padding: 3mm 4mm; gap: 4mm; }
   .layout-a4-10 .sticker-org { font-size: 10pt; }
   .layout-a4-10 .sticker-code { font-size: 12pt; }
   .layout-a4-10 .sticker-name { font-size: 10pt; -webkit-line-clamp: 3; }
+  .layout-a4-10 .sticker-date { font-size: 9pt; }
   .layout-a4-10 .sticker-resp { font-size: 9pt; }
 
   @media screen and (max-width: 860px) {
@@ -386,8 +398,8 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">ค้นหารหัส / ชื่อ</label>
-        <input type="text" name="search" class="form-control" value="{{ $search }}" placeholder="เช่น 400-42 หรือ โต๊ะ">
+        <label class="form-label">ค้นหารหัส / ชื่อ / ปีที่ได้มา</label>
+        <input type="text" name="search" class="form-control" value="{{ $search }}" placeholder="เช่น 400-42 หรือ โต๊ะ หรือ 2542">
       </div>
 
       <div class="form-group">
@@ -439,7 +451,7 @@
           <i class="fa-solid fa-location-crosshairs"></i> ค้นหาตำแหน่ง QR บนแผ่นสติกเกอร์:
         </div>
         <input type="text" id="qrLocateInput" class="form-control" style="flex:1;min-width:220px;"
-               placeholder="พิมพ์เลข QR เช่น FKSP-0085 หรือ 85 หรือ รหัสพัสดุ / ชื่อครุภัณฑ์...">
+               placeholder="พิมพ์เลข QR (เช่น FKSP-0085 หรือ 85), รหัสพัสดุ, ชื่อ หรือ ปีที่ได้มา (เช่น 2542)...">
         <button type="button" onclick="locateQrOnSheets()" class="btn btn-primary btn-sm">
           <i class="fa-solid fa-magnifying-glass"></i> ค้นหาตำแหน่ง
         </button>
@@ -453,11 +465,17 @@
     @if($layout === 'thermal')
     <div class="thermal-grid">
       @foreach($assets as $idx => $asset)
+        @php
+          $acqYear = $asset->acquiredYearBe();
+          $acqDisplay = $asset->acquiredDisplay();
+        @endphp
         <div class="sticker-card border-{{ $borderMode }}"
              data-qr="{{ $asset->qr_token }}"
              data-code="{{ $asset->asset_code ?? '' }}"
              data-name="{{ $asset->name }}"
              data-resp="{{ $asset->responsible_person ?? '' }} {{ $asset->position_title ?? '' }}"
+             data-year="{{ $acqYear ?? '' }}"
+             data-acquired="{{ $acqDisplay }}"
              data-page="1"
              data-row="{{ $idx + 1 }}"
              data-col="1"
@@ -468,7 +486,8 @@
             <div class="sticker-org">อบต.ฝางคำ • สำนักปลัด</div>
             <div class="sticker-code">{{ $asset->displayCode() }}</div>
             <div class="sticker-name">{{ $asset->name }}</div>
-            <div class="sticker-resp">{{ $asset->qr_token }} • {{ $asset->responsible_person ?? '-' }}{{ $asset->position_title && !str_contains((string)$asset->responsible_person, $asset->position_title) ? ' (' . $asset->position_title . ')' : '' }}</div>
+            <div class="sticker-date">ได้มา: {{ $acqDisplay }}</div>
+            <div class="sticker-resp">{{ $asset->qr_token }} • {{ $asset->responsibleLabel() }}</div>
           </div>
         </div>
       @endforeach
@@ -495,6 +514,8 @@
                 $rowNo = intdiv($slotIdx, $cols) + 1;
                 $colNo = ($slotIdx % $cols) + 1;
                 $slotNo = $slotIdx + 1;
+                $acqYear = $slotAsset->acquiredYearBe();
+                $acqDisplay = $slotAsset->acquiredDisplay();
               @endphp
               <div class="sticker-card border-{{ $borderMode }}"
                    id="sticker-{{ $slotAsset->qr_token }}"
@@ -502,6 +523,8 @@
                    data-code="{{ $slotAsset->asset_code ?? '' }}"
                    data-name="{{ $slotAsset->name }}"
                    data-resp="{{ $slotAsset->responsible_person ?? '' }} {{ $slotAsset->position_title ?? '' }}"
+                   data-year="{{ $acqYear ?? '' }}"
+                   data-acquired="{{ $acqDisplay }}"
                    data-page="{{ $pageNo }}"
                    data-row="{{ $rowNo }}"
                    data-col="{{ $colNo }}"
@@ -512,7 +535,8 @@
                   <div class="sticker-org">อบต.ฝางคำ • สำนักปลัด</div>
                   <div class="sticker-code">{{ $slotAsset->displayCode() }}</div>
                   <div class="sticker-name">{{ $slotAsset->name }}</div>
-                  <div class="sticker-resp">{{ $slotAsset->qr_token }} • {{ $slotAsset->responsible_person ?? '-' }}{{ $slotAsset->position_title && !str_contains((string)$slotAsset->responsible_person, $slotAsset->position_title) ? ' (' . $slotAsset->position_title . ')' : '' }}</div>
+                  <div class="sticker-date">ได้มา: {{ $acqDisplay }}</div>
+                  <div class="sticker-resp">{{ $slotAsset->qr_token }} • {{ $slotAsset->responsibleLabel() }}</div>
                 </div>
               </div>
             @endif
@@ -526,6 +550,16 @@
 
 @push('scripts')
 <script>
+  function escapeLocateHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    }[c]));
+  }
+
   function clearLocateHighlight() {
     document.querySelectorAll('.sticker-card.is-located').forEach(el => el.classList.remove('is-located'));
     const resBox = document.getElementById('qrLocateResults');
@@ -549,12 +583,12 @@
 
     if (!raw) {
       if (resBox) resBox.style.display = 'none';
-      showToast('กรุณาพิมพ์เลข QR รหัสพัสดุ หรือชื่อครุภัณฑ์ที่ต้องการหา', true);
+      showToast('กรุณาพิมพ์เลข QR รหัสพัสดุ ชื่อครุภัณฑ์ หรือปีที่ได้มาที่ต้องการหา', true);
       return;
     }
 
-    // Also support typing just number like "85" to match "FKSP-0085"
-    const paddedNum = /^\d+$/.test(raw) ? ('fksp-' + raw.padStart(4, '0')) : null;
+    // Also support typing a short slot number (1..3 digits) like "85" to match "FKSP-0085", while letting 4-digit years like "2542" match year
+    const paddedNum = /^\d{1,3}$/.test(raw) ? ('fksp-' + raw.padStart(4, '0')) : null;
     const cards = Array.from(document.querySelectorAll('.sticker-card[data-qr]'));
 
     const matches = cards.filter(card => {
@@ -562,8 +596,10 @@
       const code = (card.dataset.code || '').toLowerCase();
       const name = (card.dataset.name || '').toLowerCase();
       const resp = (card.dataset.resp || '').toLowerCase();
+      const acquired = (card.dataset.acquired || '').toLowerCase();
+      const year = (card.dataset.year || '').toLowerCase();
       if (paddedNum && qr === paddedNum) return true;
-      return qr.includes(raw) || code.includes(raw) || name.includes(raw) || resp.includes(raw);
+      return qr.includes(raw) || code.includes(raw) || name.includes(raw) || resp.includes(raw) || acquired.includes(raw) || year.includes(raw);
     });
 
     resBox.style.display = 'flex';
@@ -575,19 +611,22 @@
 
     matches.forEach(card => card.classList.add('is-located'));
 
-    resBox.innerHTML = matches.slice(0, 20).map((card, i) => `
-      <div class="locate-result-item" data-target-qr="${card.dataset.qr}">
+    resBox.innerHTML = matches.slice(0, 20).map((card) => `
+      <div class="locate-result-item" data-target-qr="${escapeLocateHtml(card.dataset.qr)}">
         <div>
-          <strong style="color:#1e3a8a;">${card.dataset.qr}</strong>
-          ${card.dataset.code ? `<span>(${card.dataset.code})</span>` : ''}
-          — <span>${card.dataset.name}</span>
+          <strong style="color:#1e3a8a;">${escapeLocateHtml(card.dataset.qr)}</strong>
+          ${card.dataset.code ? `<span>(${escapeLocateHtml(card.dataset.code)})</span>` : ''}
+          — <span>${escapeLocateHtml(card.dataset.name)}</span>
+          <span style="margin-left:6px;padding:1px 7px;border-radius:999px;background:#ecfdf5;color:#0f766e;font-size:12px;font-weight:700;">
+            ได้มา: ${escapeLocateHtml(card.dataset.acquired || '-')}
+          </span>
         </div>
         <div style="font-weight:700;color:#b45309;white-space:nowrap;">
-          แผ่นที่ ${card.dataset.page} • แถว(บรรทัด)ที่ ${card.dataset.row} • ช่องที่ ${card.dataset.col}
-          <span style="font-weight:400;color:#64748b;">(ดวงที่ ${card.dataset.slot})</span>
+          แผ่นที่ ${escapeLocateHtml(card.dataset.page)} • แถว(บรรทัด)ที่ ${escapeLocateHtml(card.dataset.row)} • ช่องที่ ${escapeLocateHtml(card.dataset.col)}
+          <span style="font-weight:400;color:#64748b;">(ดวงที่ ${escapeLocateHtml(card.dataset.slot)})</span>
         </div>
       </div>
-    `).join('') + (matches.length > 20 ? `<div style="font-size:12px;color:#64748b;">แสดง 20 จาก ${matches.length} รายการที่พบ</div>` : '');
+    `).join('') + (matches.length > 20 ? `<div style="font-size:12px;color:#64748b;">แสดง 20 จาก ${matches.length} รายการที่พบ (ค้นหาเพิ่มด้วยเลข/ชื่อ/ปีเพื่อเจาะจง)</div>` : '');
 
     resBox.querySelectorAll('.locate-result-item').forEach(row => {
       row.addEventListener('click', () => {

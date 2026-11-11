@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -166,5 +167,107 @@ class Asset extends Model
             ->pluck('position_title');
 
         return $fromDb->merge($defaults)->unique()->values();
+    }
+
+    /**
+     * Extract the Buddhist Era (พ.ศ.) acquisition year from date, raw text, or asset code.
+     */
+    public function acquiredYearBe(): ?int
+    {
+        if ($this->acquired_date) {
+            $year = (int) $this->acquired_date->year;
+
+            return $year >= 2400 ? $year : $year + 543;
+        }
+
+        $text = trim((string) $this->acquired_date_text);
+        if ($text !== '') {
+            if (preg_match('/(24\d{2}|25\d{2})/u', $text, $m)) {
+                return (int) $m[1];
+            }
+            if (preg_match('/(?:\.|\/|-|\s)(\d{2})\s*$/u', $text, $m)) {
+                $short = (int) $m[1];
+
+                return ($short >= 80 ? 2400 : 2500) + $short;
+            }
+        }
+
+        if ($this->asset_code && preg_match('/^\d+-(\d{2})-\d+/', trim($this->asset_code), $m)) {
+            $short = (int) $m[1];
+
+            return ($short >= 80 ? 2400 : 2500) + $short;
+        }
+
+        return null;
+    }
+
+    /**
+     * Human-readable acquisition date string including explicit 4-digit BE year when abbreviated.
+     */
+    public function acquiredDisplay(): string
+    {
+        $text = trim((string) $this->acquired_date_text);
+        $year = $this->acquiredYearBe();
+
+        if ($text !== '') {
+            if ($year && ! str_contains($text, (string) $year)) {
+                return "{$text} (ปี {$year})";
+            }
+
+            return $text;
+        }
+
+        return $year ? "ปี พ.ศ. {$year}" : '-';
+    }
+
+    /**
+     * Combined responsible person and position label for compact views/stickers.
+     */
+    public function responsibleLabel(): string
+    {
+        $resp = $this->responsible_person ?? '-';
+        if ($this->position_title && ! str_contains((string) $this->responsible_person, $this->position_title)) {
+            return "{$resp} ({$this->position_title})";
+        }
+
+        return $resp;
+    }
+
+    /**
+     * Search across QR token, code, name, responsible person, location, and acquisition date/year.
+     */
+    public function scopeSearch(Builder $query, string $search): Builder
+    {
+        $term = trim($search);
+        if ($term === '') {
+            return $query;
+        }
+
+        $ceYear = null;
+        $shortBe = null;
+        if (preg_match('/^(24|25)(\d{2})$/', $term, $m)) {
+            $ceYear = (int) $term - 543;
+            $shortBe = $m[2];
+        }
+
+        return $query->where(function (Builder $q) use ($term, $ceYear, $shortBe) {
+            $q->where('qr_token', 'like', "%{$term}%")
+                ->orWhere('asset_code', 'like', "%{$term}%")
+                ->orWhere('name', 'like', "%{$term}%")
+                ->orWhere('specification', 'like', "%{$term}%")
+                ->orWhere('responsible_person', 'like', "%{$term}%")
+                ->orWhere('position_title', 'like', "%{$term}%")
+                ->orWhere('location', 'like', "%{$term}%")
+                ->orWhere('acquired_date_text', 'like', "%{$term}%");
+
+            if ($ceYear !== null && $shortBe !== null) {
+                $q->orWhere(function (Builder $sub) use ($ceYear) {
+                    $sub->whereDate('acquired_date', '>=', "{$ceYear}-01-01")
+                        ->whereDate('acquired_date', '<=', "{$ceYear}-12-31");
+                })
+                    ->orWhere('asset_code', 'like', "%-{$shortBe}-%")
+                    ->orWhere('acquired_date_text', 'like', "%{$shortBe}");
+            }
+        });
     }
 }

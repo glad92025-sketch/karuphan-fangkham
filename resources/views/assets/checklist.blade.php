@@ -128,6 +128,10 @@
         </select>
       </div>
       <div class="form-group">
+        <label class="form-label">ค้นหา (รหัส / ชื่อ / ปีที่ได้มา)</label>
+        <input type="text" name="search" class="form-control" value="{{ request('search') }}" placeholder="เช่น 2542 หรือ เก้าอี้ หรือ 400-42">
+      </div>
+      <div class="form-group">
         <label class="form-label">รูป QR ในตาราง</label>
         <select name="with_qr" class="form-select">
           <option value="1" {{ $withQr ? 'selected' : '' }}>แสดงรูป QR จิ๋วคู่รายการ (ช่วยเทียบดวงสติกเกอร์)</option>
@@ -155,21 +159,23 @@
     <table class="checklist-table">
       <thead>
         <tr>
-          <th style="width:42px;">ลำดับ</th>
+          <th style="width:38px;">ลำดับ</th>
           @if($withQr)
-            <th style="width:58px;">QR</th>
+            <th style="width:56px;">QR</th>
           @endif
-          <th style="width:110px;">รหัส QR / พัสดุ</th>
+          <th style="width:104px;">รหัส QR / พัสดุ</th>
+          <th style="width:94px;">วันที่ / ปีที่ได้มา</th>
           <th>ชื่อพัสดุ / ยี่ห้อ / ลักษณะ</th>
-          <th style="width:130px;">ข้อมูลเดิมในทะเบียน</th>
-          <th style="width:52px;">ติด QR</th>
-          <th style="width:165px;">ผู้รับผิดชอบจริง (เขียน)</th>
-          <th style="width:145px;">ตำแหน่ง (เขียน)</th>
-          <th style="width:135px;">สถานที่ตั้ง / หมายเหตุ</th>
+          <th style="width:120px;">ข้อมูลเดิมในทะเบียน</th>
+          <th style="width:48px;">ติด QR</th>
+          <th style="width:155px;">ผู้รับผิดชอบจริง (เขียน)</th>
+          <th style="width:138px;">ตำแหน่ง (เขียน)</th>
+          <th style="width:125px;">สถานที่ตั้ง / หมายเหตุ</th>
         </tr>
       </thead>
       <tbody>
         @foreach($assets as $idx => $asset)
+          @php $acqYear = $asset->acquiredYearBe(); @endphp
           <tr>
             <td style="text-align:center;font-weight:700;">{{ $idx + 1 }}</td>
             @if($withQr)
@@ -178,6 +184,12 @@
             <td style="white-space:nowrap;">
               <div style="font-weight:700;color:#1e3a8a;">{{ $asset->qr_token }}</div>
               <div>{{ $asset->asset_code ?? '(ไม่มีรหัส)' }}</div>
+            </td>
+            <td style="text-align:center;white-space:nowrap;">
+              @if($acqYear)
+                <div style="display:inline-block;padding:1px 6px;border-radius:999px;background:#ecfdf5;color:#0f766e;font-weight:700;font-size:11px;margin-bottom:2px;">ปี {{ $acqYear }}</div>
+              @endif
+              <div style="font-size:11px;color:#334155;">{{ $asset->acquired_date_text ?? '-' }}</div>
             </td>
             <td>
               <div style="font-weight:700;">{{ $asset->name }}</div>

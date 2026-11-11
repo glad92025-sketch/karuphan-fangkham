@@ -28,8 +28,8 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">ค้นหา (รหัส / ชื่อ / ผู้รับผิดชอบ)</label>
-        <input type="text" name="search" class="form-control" value="{{ request('search') }}" placeholder="ค้นหา...">
+        <label class="form-label">ค้นหา (รหัส / ชื่อ / ปีที่ได้มา / ผู้รับผิดชอบ)</label>
+        <input type="text" name="search" class="form-control" value="{{ request('search') }}" placeholder="เช่น 2542 หรือ เก้าอี้...">
       </div>
       <div class="form-group">
         <label class="form-label">ปีงบประมาณ</label>
@@ -83,7 +83,7 @@
             <tr>
               <th style="width:50px;">ลำดับ</th>
               <th style="width:125px;">รหัส QR / พัสดุ</th>
-              <th style="min-width:210px;">ชื่อพัสดุ</th>
+              <th style="min-width:210px;">ชื่อพัสดุ / ปีที่ได้มา</th>
               <th style="min-width:190px;">ผู้รับผิดชอบ (ชื่อ / หน่วยงาน)</th>
               <th style="min-width:190px;">ตำแหน่ง</th>
               <th style="min-width:170px;">สถานที่ตั้ง / ห้อง</th>
@@ -92,6 +92,7 @@
           </thead>
           <tbody>
             @forelse($assets as $idx => $asset)
+              @php $acqYear = $asset->acquiredYearBe(); @endphp
               <tr>
                 <td style="text-align:center;">{{ $idx + 1 }}</td>
                 <td style="white-space:nowrap;">
@@ -102,7 +103,12 @@
                 </td>
                 <td>
                   <div style="font-weight:600;">{{ $asset->name }}</div>
-                  <div style="font-size:11.5px;color:var(--text-light);">{{ $asset->category ?? '-' }}</div>
+                  <div style="font-size:11.5px;color:var(--text-light);">
+                    @if($acqYear)
+                      <span style="display:inline-block;padding:0 6px;border-radius:999px;background:#ecfdf5;color:#0f766e;font-weight:700;margin-right:4px;">ปี {{ $acqYear }}</span>
+                    @endif
+                    ได้มา: {{ $asset->acquiredDisplay() }} • {{ $asset->category ?? '-' }}
+                  </div>
                 </td>
                 <td>
                   <input type="text" name="rows[{{ $asset->id }}][responsible_person]" list="bulkRespList"
