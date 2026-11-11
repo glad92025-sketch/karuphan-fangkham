@@ -21,6 +21,7 @@ class StockCheckItem extends Model
         'checker_name',
         'check_status',
         'actual_responsible',
+        'actual_position',
         'actual_location',
         'scan_method',
         'remark',

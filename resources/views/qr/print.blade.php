@@ -380,7 +380,7 @@
             <div class="sticker-org">อบต.ฝางคำ • สำนักปลัด</div>
             <div class="sticker-code">{{ $asset->displayCode() }}</div>
             <div class="sticker-name">{{ $asset->name }}</div>
-            <div class="sticker-resp">{{ $asset->qr_token }} • {{ $asset->responsible_person ?? '-' }}</div>
+            <div class="sticker-resp">{{ $asset->qr_token }} • {{ $asset->responsible_person ?? '-' }}{{ $asset->position_title && !str_contains((string)$asset->responsible_person, $asset->position_title) ? ' (' . $asset->position_title . ')' : '' }}</div>
           </div>
         </div>
       @endforeach
@@ -407,7 +407,7 @@
                   <div class="sticker-org">อบต.ฝางคำ • สำนักปลัด</div>
                   <div class="sticker-code">{{ $slotAsset->displayCode() }}</div>
                   <div class="sticker-name">{{ $slotAsset->name }}</div>
-                  <div class="sticker-resp">{{ $slotAsset->qr_token }} • {{ $slotAsset->responsible_person ?? '-' }}</div>
+                  <div class="sticker-resp">{{ $slotAsset->qr_token }} • {{ $slotAsset->responsible_person ?? '-' }}{{ $slotAsset->position_title && !str_contains((string)$slotAsset->responsible_person, $slotAsset->position_title) ? ' (' . $slotAsset->position_title . ')' : '' }}</div>
                 </div>
               </div>
             @endif

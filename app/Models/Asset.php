@@ -39,6 +39,7 @@ class Asset extends Model
         'fiscal_year',
         'price',
         'responsible_person',
+        'position_title',
         'department',
         'location',
         'quantity',
@@ -134,5 +135,36 @@ class Asset extends Model
         } while (self::withTrashed()->where('qr_token', $candidate)->exists());
 
         return $candidate;
+    }
+
+    /**
+     * Distinct existing position titles merged with common Thai SAO positions.
+     */
+    public static function positionSuggestions(): \Illuminate\Support\Collection
+    {
+        $defaults = collect([
+            'ปลัด อบต.',
+            'รองปลัด อบต.',
+            'หัวหน้าสำนักปลัด',
+            'นักทรัพยากรบุคคล',
+            'นักวิเคราะห์นโยบายและแผน',
+            'นิติกร',
+            'นักวิชาการคอมพิวเตอร์',
+            'เจ้าพนักงานธุรการ',
+            'เจ้าพนักงานป้องกันและบรรเทาสาธารณภัย',
+            'ผู้ช่วยเจ้าพนักงานธุรการ',
+            'ผู้ช่วยเจ้าพนักงานป้องกันฯ',
+            'พนักงานขับรถยนต์',
+            'นักการภารโรง',
+            'ประธานสภา อบต.',
+            'สมาชิกสภา อบต.',
+        ]);
+
+        $fromDb = self::whereNotNull('position_title')
+            ->where('position_title', '!=', '')
+            ->distinct()
+            ->pluck('position_title');
+
+        return $fromDb->merge($defaults)->unique()->values();
     }
 }

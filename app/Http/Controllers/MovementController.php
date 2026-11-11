@@ -34,10 +34,11 @@ class MovementController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        $assets = Asset::approved()->orderBy('excel_seq')->orderBy('id')->get(['id', 'qr_token', 'asset_code', 'name', 'responsible_person', 'location', 'status']);
+        $assets = Asset::approved()->orderBy('excel_seq')->orderBy('id')->get(['id', 'qr_token', 'asset_code', 'name', 'responsible_person', 'position_title', 'location', 'status']);
         $responsibles = Asset::approved()->whereNotNull('responsible_person')->distinct()->orderBy('responsible_person')->pluck('responsible_person');
+        $positions = Asset::positionSuggestions();
 
-        return view('movements.index', compact('movements', 'assets', 'responsibles', 'typeFilter', 'search'));
+        return view('movements.index', compact('movements', 'assets', 'responsibles', 'positions', 'typeFilter', 'search'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -46,6 +47,7 @@ class MovementController extends Controller
             'asset_id' => ['required', 'exists:assets,id'],
             'movement_type' => ['required', 'in:transfer,status_change,dispose'],
             'to_responsible' => ['nullable', 'string', 'max:200'],
+            'to_position' => ['nullable', 'string', 'max:200'],
             'to_location' => ['nullable', 'string', 'max:200'],
             'to_status' => ['required', 'in:usable,repair,damaged,disposed,lost'],
             'reference_doc' => ['nullable', 'string', 'max:150'],
@@ -56,15 +58,20 @@ class MovementController extends Controller
 
         DB::transaction(function () use ($asset, $data) {
             $oldResp = $asset->responsible_person;
+            $oldPos = $asset->position_title;
             $oldLoc = $asset->location;
             $oldStatus = $asset->status;
 
             $newStatus = $data['movement_type'] === 'dispose' ? 'disposed' : $data['to_status'];
-            $newResp = $data['to_responsible'] ? trim($data['to_responsible']) : $oldResp;
-            $newLoc = $data['to_location'] ? trim($data['to_location']) : $oldLoc;
+            $newResp = ! empty($data['to_responsible']) ? trim($data['to_responsible']) : $oldResp;
+            $newPos = array_key_exists('to_position', $data) && trim((string) $data['to_position']) !== ''
+                ? trim((string) $data['to_position'])
+                : $oldPos;
+            $newLoc = ! empty($data['to_location']) ? trim($data['to_location']) : $oldLoc;
 
             $asset->update([
                 'responsible_person' => $newResp,
+                'position_title' => $newPos,
                 'location' => $newLoc,
                 'status' => $newStatus,
             ]);

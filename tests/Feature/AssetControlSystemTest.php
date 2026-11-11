@@ -79,30 +79,56 @@ class AssetControlSystemTest extends TestCase
         $stockCheck = StockCheck::where('status', 'open')->firstOrFail();
         $staff = User::where('email', 'staff@fangkham.go.th')->firstOrFail();
 
-        // Guest can view public QR tag read-only
+        // Guest can view public QR tag read-only with responsible person & position
         $this->get(route('scan.show', ['token' => $asset->qr_token]))
             ->assertOk()
             ->assertSee($asset->name)
+            ->assertSee('ผู้รับผิดชอบ')
+            ->assertSee('ตำแหน่ง')
             ->assertSee('เข้าสู่ระบบเพื่อตรวจเช็ค');
 
-        // Authenticated staff can perform QR check-in linked to stock check
+        // Authenticated staff can perform QR check-in linked to stock check & key in position
         $this->actingAs($staff)->post(route('scan.check', ['token' => $asset->qr_token]), [
             'condition_status' => 'usable',
             'stock_check_id' => $stockCheck->id,
             'location_found' => 'ห้องสำนักปลัด ชั้น 1',
-            'actual_responsible' => $asset->responsible_person,
+            'actual_responsible' => 'นายสมชาย ใจดี',
+            'actual_position' => 'หัวหน้าสำนักปลัด',
             'scan_method' => 'qr',
             'note' => 'สแกนตรวจสอบสภาพปกติ',
         ])->assertRedirect(route('scan.show', ['token' => $asset->qr_token]));
 
         $asset->refresh();
+        $this->assertSame('นายสมชาย ใจดี', $asset->responsible_person);
+        $this->assertSame('หัวหน้าสำนักปลัด', $asset->position_title);
         $this->assertNotNull($asset->last_checked_at);
         $this->assertSame($staff->id, $asset->last_checked_by);
         $this->assertDatabaseHas('stock_check_items', [
             'stock_check_id' => $stockCheck->id,
             'asset_id' => $asset->id,
             'check_status' => 'found_usable',
+            'actual_position' => 'หัวหน้าสำนักปลัด',
         ]);
+
+        // Edit page works and returns to scan page when return_to=scan
+        $this->actingAs($staff)->get(route('assets.edit', ['asset' => $asset, 'return_to' => 'scan']))
+            ->assertOk()
+            ->assertSee('หัวหน้าสำนักปลัด');
+
+        $this->actingAs($staff)->put(route('assets.update', $asset), [
+            'name' => $asset->name,
+            'fiscal_year' => $asset->fiscal_year,
+            'price' => $asset->price,
+            'quantity' => $asset->quantity,
+            'unit' => $asset->unit,
+            'status' => 'usable',
+            'responsible_person' => 'นางสาวกนกวรรณ',
+            'position_title' => 'นักทรัพยากรบุคคล',
+            'location' => 'ห้องธุรการ',
+            'return_to' => 'scan',
+        ])->assertRedirect(route('scan.show', ['token' => $asset->qr_token]));
+
+        $this->assertSame('นักทรัพยากรบุคคล', $asset->fresh()->position_title);
         $this->assertDatabaseHas('asset_inspections', [
             'asset_id' => $asset->id,
             'stock_check_id' => $stockCheck->id,

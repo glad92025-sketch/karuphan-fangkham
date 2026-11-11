@@ -54,7 +54,8 @@
             <tr><th>หมวดหมู่</th><td>{{ $asset->category ?? '-' }}</td></tr>
             <tr><th>วันที่ได้มา / ปีงบประมาณ</th><td>{{ $asset->acquired_date_text ?? '-' }} (ปีงบประมาณ {{ $asset->fiscal_year }})</td></tr>
             <tr><th>ราคา</th><td><strong>{{ number_format((float)$asset->price, 2) }} บาท</strong> ({{ $asset->quantity }} {{ $asset->unit }})</td></tr>
-            <tr><th>ผู้รับผิดชอบ / ตำแหน่ง</th><td><span class="badge badge-blue">{{ $asset->responsible_person ?? 'ยังไม่ระบุ' }}</span></td></tr>
+            <tr><th>ผู้รับผิดชอบ</th><td><span class="badge badge-blue">{{ $asset->responsible_person ?? 'ยังไม่ระบุ' }}</span></td></tr>
+            <tr><th>ตำแหน่ง</th><td><span class="badge" style="background:#ede9fe;color:#6d28d9;">{{ $asset->position_title ?? 'ยังไม่ระบุตำแหน่ง' }}</span></td></tr>
             <tr><th>สถานที่ตั้ง</th><td>{{ $asset->location ?? '-' }}</td></tr>
             <tr><th>หมายเหตุ</th><td>{{ $asset->note ?? '-' }}</td></tr>
             <tr>
@@ -137,10 +138,17 @@
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">ผู้รับผิดชอบ / ตำแหน่งใหม่</label>
+              <label class="form-label">ผู้รับผิดชอบใหม่</label>
               <input type="text" name="to_responsible" list="respShowList" class="form-control" value="{{ $asset->responsible_person }}">
               <datalist id="respShowList">
                 @foreach($responsibles as $r)<option value="{{ $r }}">@endforeach
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ตำแหน่งใหม่</label>
+              <input type="text" name="to_position" list="posShowList" class="form-control" value="{{ $asset->position_title }}" placeholder="เช่น หัวหน้าสำนักปลัด">
+              <datalist id="posShowList">
+                @foreach($positions as $p)<option value="{{ $p }}">@endforeach
               </datalist>
             </div>
             <div class="form-group">

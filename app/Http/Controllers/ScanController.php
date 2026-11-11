@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class ScanController extends Controller
@@ -67,8 +68,9 @@ class ScanController extends Controller
             ->distinct()
             ->orderBy('responsible_person')
             ->pluck('responsible_person');
+        $positions = Asset::positionSuggestions();
 
-        return view('scan.show', compact('asset', 'qrSvg', 'openStockChecks', 'responsibles'));
+        return view('scan.show', compact('asset', 'qrSvg', 'openStockChecks', 'responsibles', 'positions'));
     }
 
     public function checkIn(Request $request, string $token): RedirectResponse
@@ -80,18 +82,32 @@ class ScanController extends Controller
             'stock_check_id' => ['nullable', 'exists:stock_checks,id'],
             'location_found' => ['nullable', 'string', 'max:200'],
             'actual_responsible' => ['nullable', 'string', 'max:200'],
+            'actual_position' => ['nullable', 'string', 'max:200'],
             'scan_method' => ['nullable', 'in:qr,manual'],
             'note' => ['nullable', 'string', 'max:500'],
+            'photo' => ['nullable', 'image', 'max:4096'],
         ]);
 
-        DB::transaction(function () use ($asset, $data) {
+        $newPhotoPath = $asset->photo_path;
+        if ($request->hasFile('photo')) {
+            if ($asset->photo_path) {
+                Storage::disk('public')->delete($asset->photo_path);
+            }
+            $newPhotoPath = $request->file('photo')->store('assets', 'public');
+        }
+
+        DB::transaction(function () use ($asset, $data, $newPhotoPath) {
             $user = Auth::user();
             $oldStatus = $asset->status;
             $oldLocation = $asset->location;
             $oldResp = $asset->responsible_person;
+            $oldPos = $asset->position_title;
 
             $newLocation = ! empty($data['location_found']) ? trim($data['location_found']) : $oldLocation;
             $newResp = ! empty($data['actual_responsible']) ? trim($data['actual_responsible']) : $oldResp;
+            $newPos = array_key_exists('actual_position', $data) && trim((string) $data['actual_position']) !== ''
+                ? trim((string) $data['actual_position'])
+                : ($oldPos ?: null);
 
             AssetInspection::create([
                 'asset_id' => $asset->id,
@@ -101,7 +117,7 @@ class ScanController extends Controller
                 'condition_status' => $data['condition_status'],
                 'location_found' => $newLocation,
                 'scan_method' => $data['scan_method'] ?? 'qr',
-                'note' => $data['note'] ?? null,
+                'note' => trim(($data['note'] ?? '') . ($newPos ? " [ตำแหน่ง: {$newPos}]" : '')) ?: null,
                 'inspected_at' => now(),
             ]);
 
@@ -123,6 +139,7 @@ class ScanController extends Controller
                         'checker_name' => $user->name,
                         'check_status' => $checkStatus,
                         'actual_responsible' => $newResp,
+                        'actual_position' => $newPos,
                         'actual_location' => $newLocation,
                         'scan_method' => $data['scan_method'] ?? 'qr',
                         'remark' => $data['note'] ?? null,
@@ -135,28 +152,31 @@ class ScanController extends Controller
                 'status' => $data['condition_status'],
                 'location' => $newLocation,
                 'responsible_person' => $newResp,
+                'position_title' => $newPos,
+                'photo_path' => $newPhotoPath,
                 'last_checked_at' => now(),
                 'last_checked_by' => $user->id,
             ]);
 
-            if ($oldStatus !== $data['condition_status'] || $oldResp !== $newResp || $oldLocation !== $newLocation) {
+            if ($oldStatus !== $data['condition_status'] || $oldResp !== $newResp || $oldPos !== $newPos || $oldLocation !== $newLocation) {
+                $posInfo = $newPos ? " (ตำแหน่ง: {$newPos})" : '';
                 AssetMovement::create([
                     'asset_id' => $asset->id,
                     'user_id' => $user->id,
-                    'movement_type' => $oldResp !== $newResp ? 'transfer' : 'status_change',
+                    'movement_type' => ($oldResp !== $newResp || $oldPos !== $newPos) ? 'transfer' : 'status_change',
                     'from_responsible' => $oldResp,
                     'to_responsible' => $newResp,
                     'from_location' => $oldLocation,
                     'to_location' => $newLocation,
                     'from_status' => $oldStatus,
                     'to_status' => $data['condition_status'],
-                    'remark' => 'บันทึกจากการตรวจเช็ค QR: ' . ($data['note'] ?? '-'),
+                    'remark' => 'บันทึกจากการตรวจเช็ค QR' . $posInfo . ': ' . ($data['note'] ?? '-'),
                     'moved_at' => now(),
                 ]);
             }
         });
 
         return redirect()->route('scan.show', ['token' => $asset->qr_token])
-            ->with('success', 'บันทึกผลการตรวจเช็คครุภัณฑ์เรียบร้อยแล้ว');
+            ->with('success', 'บันทึกข้อมูลผู้รับผิดชอบ ตำแหน่ง และผลตรวจเช็คเรียบร้อยแล้ว');
     }
 }

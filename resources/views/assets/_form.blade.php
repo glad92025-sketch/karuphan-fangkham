@@ -53,13 +53,25 @@
   </div>
 
   <div class="form-group">
-    <label class="form-label" for="responsible_person">ผู้รับผิดชอบ / ตำแหน่ง</label>
+    <label class="form-label" for="responsible_person">ผู้รับผิดชอบ (ชื่อผู้ถือครอง / หน่วยงาน)</label>
     <input type="text" id="responsible_person" name="responsible_person" list="respList" class="form-control"
            value="{{ old('responsible_person', $asset->responsible_person ?? 'สำนักปลัด') }}"
-           placeholder="เช่น สำนักปลัด, สำนักปลัด(ผช.ธุรการ), สป.(นักทรัพย์)">
+           placeholder="เช่น นายสมชาย ใจดี หรือ สำนักปลัด">
     <datalist id="respList">
       @foreach($responsibles as $resp)
         <option value="{{ $resp }}">
+      @endforeach
+    </datalist>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="position_title">ตำแหน่ง</label>
+    <input type="text" id="position_title" name="position_title" list="posList" class="form-control"
+           value="{{ old('position_title', $asset->position_title ?? '') }}"
+           placeholder="เช่น หัวหน้าสำนักปลัด, นักทรัพยากรบุคคล, ผช.ธุรการ">
+    <datalist id="posList">
+      @foreach($positions as $pos)
+        <option value="{{ $pos }}">
       @endforeach
     </datalist>
   </div>
@@ -91,9 +103,15 @@
     </select>
   </div>
 
-  <div class="form-group">
-    <label class="form-label" for="photo">ภาพถ่ายครุภัณฑ์ (ถ้ามี)</label>
-    <input type="file" id="photo" name="photo" class="form-control" accept="image/*">
+  <div class="form-group full">
+    <label class="form-label" for="photo">ภาพถ่ายครุภัณฑ์ (ถ่ายจากมือถือหรืออัปโหลดรูป)</label>
+    @if(isset($asset) && $asset->photo_path)
+      <div style="margin-bottom:8px;">
+        <img src="{{ asset('storage/' . $asset->photo_path) }}" alt="{{ $asset->name }}"
+             style="max-height:140px;border-radius:10px;border:1px solid var(--border);">
+      </div>
+    @endif
+    <input type="file" id="photo" name="photo" class="form-control" accept="image/*" capture="environment">
   </div>
 
   <div class="form-group full">

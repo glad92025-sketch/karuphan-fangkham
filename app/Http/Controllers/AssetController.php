@@ -33,6 +33,7 @@ class AssetController extends Controller
                     ->orWhere('name', 'like', "%{$search}%")
                     ->orWhere('specification', 'like', "%{$search}%")
                     ->orWhere('responsible_person', 'like', "%{$search}%")
+                    ->orWhere('position_title', 'like', "%{$search}%")
                     ->orWhere('location', 'like', "%{$search}%");
             });
         }
@@ -87,6 +88,7 @@ class AssetController extends Controller
 
         $pendingCount = Asset::pendingReview()->count();
         $approvedCount = Asset::approved()->count();
+        $positions = Asset::positionSuggestions();
 
         return view('assets.index', compact(
             'assets',
@@ -94,6 +96,7 @@ class AssetController extends Controller
             'categories',
             'responsibles',
             'approvedResponsibles',
+            'positions',
             'filteredCount',
             'filteredSum',
             'pendingCount',
@@ -105,9 +108,10 @@ class AssetController extends Controller
     {
         $categories = Asset::whereNotNull('category')->distinct()->orderBy('category')->pluck('category');
         $responsibles = Asset::approved()->whereNotNull('responsible_person')->distinct()->orderBy('responsible_person')->pluck('responsible_person');
+        $positions = Asset::positionSuggestions();
         $nextToken = Asset::generateNextToken();
 
-        return view('assets.create', compact('categories', 'responsibles', 'nextToken'));
+        return view('assets.create', compact('categories', 'responsibles', 'positions', 'nextToken'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -161,16 +165,19 @@ class AssetController extends Controller
             ->distinct()
             ->orderBy('responsible_person')
             ->pluck('responsible_person');
+        $positions = Asset::positionSuggestions();
 
-        return view('assets.show', compact('asset', 'qrSvg', 'openStockChecks', 'responsibles'));
+        return view('assets.show', compact('asset', 'qrSvg', 'openStockChecks', 'responsibles', 'positions'));
     }
 
-    public function edit(Asset $asset): View
+    public function edit(Request $request, Asset $asset): View
     {
         $categories = Asset::whereNotNull('category')->distinct()->orderBy('category')->pluck('category');
         $responsibles = Asset::approved()->whereNotNull('responsible_person')->distinct()->orderBy('responsible_person')->pluck('responsible_person');
+        $positions = Asset::positionSuggestions();
+        $returnTo = $request->string('return_to')->toString();
 
-        return view('assets.edit', compact('asset', 'categories', 'responsibles'));
+        return view('assets.edit', compact('asset', 'categories', 'responsibles', 'positions', 'returnTo'));
     }
 
     public function update(Request $request, Asset $asset): RedirectResponse
@@ -185,28 +192,35 @@ class AssetController extends Controller
         }
 
         $oldResp = $asset->responsible_person;
+        $oldPos = $asset->position_title;
         $oldLoc = $asset->location;
         $oldStatus = $asset->status;
 
-        DB::transaction(function () use ($asset, $validated, $oldResp, $oldLoc, $oldStatus) {
+        DB::transaction(function () use ($asset, $validated, $oldResp, $oldPos, $oldLoc, $oldStatus) {
             $asset->update($validated);
 
-            if ($oldResp !== $asset->responsible_person || $oldLoc !== $asset->location || $oldStatus !== $asset->status) {
+            if ($oldResp !== $asset->responsible_person || $oldPos !== $asset->position_title || $oldLoc !== $asset->location || $oldStatus !== $asset->status) {
+                $posNote = $oldPos !== $asset->position_title ? ' (ตำแหน่ง: ' . ($asset->position_title ?? '-') . ')' : '';
                 AssetMovement::create([
                     'asset_id' => $asset->id,
                     'user_id' => Auth::id(),
-                    'movement_type' => $oldResp !== $asset->responsible_person ? 'transfer' : 'status_change',
+                    'movement_type' => ($oldResp !== $asset->responsible_person || $oldPos !== $asset->position_title) ? 'transfer' : 'status_change',
                     'from_responsible' => $oldResp,
                     'to_responsible' => $asset->responsible_person,
                     'from_location' => $oldLoc,
                     'to_location' => $asset->location,
                     'from_status' => $oldStatus,
                     'to_status' => $asset->status,
-                    'remark' => 'แก้ไขข้อมูลทะเบียนครุภัณฑ์',
+                    'remark' => 'แก้ไขข้อมูลทะเบียนครุภัณฑ์' . $posNote,
                     'moved_at' => now(),
                 ]);
             }
         });
+
+        if ($request->string('return_to')->toString() === 'scan') {
+            return redirect()->route('scan.show', ['token' => $asset->qr_token])
+                ->with('success', 'อัปเดตข้อมูลครุภัณฑ์เรียบร้อยแล้ว');
+        }
 
         return redirect()->route('assets.show', $asset)
             ->with('success', 'อัปเดตข้อมูลครุภัณฑ์เรียบร้อยแล้ว');
@@ -216,10 +230,11 @@ class AssetController extends Controller
     {
         $data = $request->validate([
             'responsible_person' => ['required', 'string', 'max:200'],
+            'position_title' => ['nullable', 'string', 'max:200'],
             'location' => ['nullable', 'string', 'max:200'],
             'note' => ['nullable', 'string', 'max:500'],
         ], [
-            'responsible_person.required' => 'กรุณาระบุผู้รับผิดชอบ/ตำแหน่งก่อนนำเข้าทะเบียนสำนักปลัด',
+            'responsible_person.required' => 'กรุณาระบุผู้รับผิดชอบก่อนนำเข้าทะเบียนสำนักปลัด',
         ]);
 
         DB::transaction(function () use ($asset, $data) {
@@ -228,7 +243,8 @@ class AssetController extends Controller
 
             $asset->update([
                 'responsible_person' => trim($data['responsible_person']),
-                'location' => $data['location'] ? trim($data['location']) : ($asset->location ?: 'สำนักปลัด อบต.ฝางคำ'),
+                'position_title' => ! empty($data['position_title']) ? trim($data['position_title']) : $asset->position_title,
+                'location' => ! empty($data['location']) ? trim($data['location']) : ($asset->location ?: 'สำนักปลัด อบต.ฝางคำ'),
                 'department' => 'สำนักปลัด',
                 'review_status' => 'approved',
                 'excel_seq' => $nextSeq,
@@ -318,6 +334,7 @@ class AssetController extends Controller
             'fiscal_year' => ['required', 'integer', 'min:2500', 'max:2600'],
             'price' => ['required', 'numeric', 'min:0'],
             'responsible_person' => ['nullable', 'string', 'max:200'],
+            'position_title' => ['nullable', 'string', 'max:200'],
             'location' => ['nullable', 'string', 'max:200'],
             'quantity' => ['required', 'integer', 'min:1'],
             'unit' => ['required', 'string', 'max:50'],

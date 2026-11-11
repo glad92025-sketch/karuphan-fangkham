@@ -104,10 +104,18 @@
         </div>
 
         <div class="form-group" style="margin-bottom:10px;">
-          <label class="form-label">ผู้รับผิดชอบ / ตำแหน่งใหม่</label>
-          <input type="text" name="to_responsible" list="mvRespList" class="form-control" placeholder="ระบุตำแหน่งหรือผู้รับผิดชอบใหม่">
+          <label class="form-label">ผู้รับผิดชอบใหม่ (ชื่อ / หน่วยงาน)</label>
+          <input type="text" name="to_responsible" list="mvRespList" class="form-control" placeholder="ระบุผู้รับผิดชอบใหม่">
           <datalist id="mvRespList">
             @foreach($responsibles as $r)<option value="{{ $r }}">@endforeach
+          </datalist>
+        </div>
+
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">ตำแหน่งใหม่</label>
+          <input type="text" name="to_position" list="mvPosList" class="form-control" placeholder="ระบุตำแหน่งใหม่">
+          <datalist id="mvPosList">
+            @foreach($positions as $p)<option value="{{ $p }}">@endforeach
           </datalist>
         </div>
 

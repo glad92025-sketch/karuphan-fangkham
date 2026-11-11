@@ -138,6 +138,7 @@ class ExcelAssetService
                     'fiscal_year' => $fiscalYear,
                     'price' => $item['price'],
                     'responsible_person' => $responsible,
+                    'position_title' => $this->inferPositionTitle($responsible),
                     'department' => 'สำนักปลัด',
                     'location' => $this->inferLocation($responsible, $item['specification']),
                     'quantity' => 1,
@@ -195,6 +196,7 @@ class ExcelAssetService
                     'fiscal_year' => $this->inferFiscalYear($item['asset_code'], $item['acquired_date']),
                     'price' => $item['price'],
                     'responsible_person' => $item['responsible_person'],
+                    'position_title' => $this->inferPositionTitle($item['responsible_person']),
                     'department' => 'รอตรวจสอบ',
                     'location' => $this->inferLocation($item['responsible_person'], $item['specification']),
                     'quantity' => 1,
@@ -273,7 +275,8 @@ class ExcelAssetService
             'ได้มาเมื่อวันที่',
             'ปีงบประมาณ',
             'ราคา (บาท)',
-            'ผู้รับผิดชอบ/ตำแหน่ง',
+            'ผู้รับผิดชอบ',
+            'ตำแหน่ง',
             'สถานที่ตั้ง',
             'สภาพ/สถานะ',
             'ตรวจเช็คล่าสุด',
@@ -295,6 +298,7 @@ class ExcelAssetService
                 $asset->fiscal_year,
                 $price,
                 $asset->responsible_person ?? '',
+                $asset->position_title ?? '',
                 $asset->location ?? '',
                 $asset->statusLabel(),
                 $asset->last_checked_at ? $asset->last_checked_at->format('d/m/Y H:i') : 'ยังไม่ตรวจ',
@@ -303,7 +307,7 @@ class ExcelAssetService
         }
 
         $writer->addRow(Row::fromValuesWithStyles([
-            '', '', '', 'รวมทั้งสิ้น ' . $assets->count() . ' รายการ', '', '', '', '', $sumPrice, '', '', '', '', '',
+            '', '', '', 'รวมทั้งสิ้น ' . $assets->count() . ' รายการ', '', '', '', '', $sumPrice, '', '', '', '', '', '',
         ], [3 => $totalStyle, 8 => $totalStyle]));
 
         $writer->close();
@@ -598,6 +602,17 @@ class ExcelAssetService
             return ($c->month >= 10 ? $be + 1 : $be) >= 2569 ? 2569 : 2568;
         }
         return 2569;
+    }
+
+    private function inferPositionTitle(?string $responsible): ?string
+    {
+        if ($responsible && preg_match('/\(([^)]+)\)/u', $responsible, $m)) {
+            $inside = trim($m[1]);
+            if ($inside !== '' && ! str_contains($inside, 'หมู่ที่')) {
+                return $inside;
+            }
+        }
+        return null;
     }
 
     private function inferLocation(?string $responsible, ?string $spec): ?string

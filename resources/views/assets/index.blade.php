@@ -149,8 +149,11 @@
               <td style="text-align:right;white-space:nowrap;font-weight:600;">{{ number_format((float)$asset->price, 2) }}</td>
               <td>
                 <span class="badge badge-blue">{{ $asset->responsible_person ?? 'ยังไม่ระบุ' }}</span>
+                @if($asset->position_title)
+                  <div style="font-size:12px;color:#6d28d9;font-weight:600;margin-top:3px;">ตำแหน่ง: {{ $asset->position_title }}</div>
+                @endif
                 @if($asset->location)
-                  <div style="font-size:11.5px;color:var(--text-light);margin-top:3px;">{{ $asset->location }}</div>
+                  <div style="font-size:11.5px;color:var(--text-light);margin-top:2px;">{{ $asset->location }}</div>
                 @endif
               </td>
               <td><span class="badge {{ $asset->badgeClass() }}">{{ $asset->statusLabel() }}</span></td>
@@ -195,11 +198,21 @@
       <form method="POST" id="approveForm">
         @csrf
         <div class="form-group" style="margin-bottom:12px;">
-          <label class="form-label">ผู้รับผิดชอบ / ชื่อตำแหน่ง *</label>
-          <input type="text" name="responsible_person" id="approveRespInput" list="respSuggestions" class="form-control" required placeholder="เช่น สำนักปลัด, สำนักปลัด(ผช.ธุรการ), ห้องปลัด">
+          <label class="form-label">ผู้รับผิดชอบ (ชื่อ / หน่วยงาน) *</label>
+          <input type="text" name="responsible_person" id="approveRespInput" list="respSuggestions" class="form-control" required placeholder="เช่น สำนักปลัด หรือ นายสมชาย ใจดี">
           <datalist id="respSuggestions">
             @foreach($approvedResponsibles as $resp)
               <option value="{{ $resp }}">
+            @endforeach
+          </datalist>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">ตำแหน่ง</label>
+          <input type="text" name="position_title" list="posSuggestions" class="form-control" placeholder="เช่น หัวหน้าสำนักปลัด, นักทรัพยากรบุคคล">
+          <datalist id="posSuggestions">
+            @foreach($positions as $pos)
+              <option value="{{ $pos }}">
             @endforeach
           </datalist>
         </div>
